@@ -69,7 +69,7 @@ const server = http.createServer((req, res) => {
   }
 
   // Serve static files
-  let filePath = path.join('C:/ANALISTAS/dashboard', pathname === '/' ? '/crm_sottcor.html' : pathname);
+  let filePath = path.join(__dirname, pathname === '/' ? '/crm_sottcor.html' : pathname);
   fs.readFile(filePath, (err, data) => {
     if (err) { res.writeHead(404); res.end('Not found: ' + pathname); return; }
     res.setHeader('Access-Control-Allow-Origin', '*');
