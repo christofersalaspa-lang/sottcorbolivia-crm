@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sottcor Bolivia — CRM Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { font-family: 'Inter', system-ui, sans-serif; }
+  body { background: #0f1117; color: #e2e8f0; }
+  .card { background: #1a1d2e; border: 1px solid #2d3148; border-radius: 12px; }
+  .card-hover:hover { border-color: #4f46e5; transition: border-color 0.2s; }
+  .metric-card { background: linear-gradient(135deg, #1a1d2e 0%, #1e2235 100%); border: 1px solid #2d3148; border-radius: 12px; padding: 20px; }
+  .badge { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .badge-nuevo { background: #1e3a5f; color: #60a5fa; }
+  .badge-seguimiento { background: #2d2a1f; color: #f59e0b; }
+  .badge-cerrado { background: #1a2e1a; color: #4ade80; }
+  .badge-perdido { background: #2e1a1a; color: #f87171; }
+  .scroll-table { overflow-x: auto; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #1a1d2e; }
+  ::-webkit-scrollbar-thumb { background: #3d4166; border-radius: 3px; }
+  .pulse { animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+  .sidebar-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 8px; cursor: pointer; transition: background 0.15s; font-size: 14px; }
+  .sidebar-item:hover, .sidebar-item.active { background: #2d3148; color: #818cf8; }
+  .sidebar-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+  input, select { background: #0f1117; border: 1px solid #2d3148; color: #e2e8f0; border-radius: 8px; padding: 8px 12px; font-size: 13px; outline: none; }
+  input:focus, select:focus { border-color: #4f46e5; }
+  .btn { padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity 0.15s; }
+  .btn:hover { opacity: 0.85; }
+  .btn-primary { background: #4f46e5; color: white; border: none; }
+  .btn-secondary { background: #2d3148; color: #e2e8f0; border: none; }
+  .btn-success { background: #059669; color: white; border: none; }
+  .btn-danger { background: #dc2626; color: white; border: none; }
+  .progress-bar { height: 6px; background: #2d3148; border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+  .tab { padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; }
+  .tab.active { background: #4f46e5; color: white; }
+  .tab:not(.active) { color: #94a3b8; }
+  .tab:not(.active):hover { background: #2d3148; color: #e2e8f0; }
+  .toast { position: fixed; bottom: 24px; right: 24px; background: #1a1d2e; border: 1px solid #4f46e5; border-radius: 10px; padding: 14px 20px; z-index: 9999; font-size: 13px; display: none; }
+  .dot-online { width: 8px; height: 8px; background: #4ade80; border-radius: 50%; display: inline-block; }
+  .dot-offline { width: 8px; height: 8px; background: #64748b; border-radius: 50%; display: inline-block; }
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- Sidebar -->
+<div class="fixed left-0 top-0 h-full w-56 card border-r border-gray-800 flex flex-col z-50" style="border-radius:0;background:#13162a;">
+  <div class="p-5 border-b border-gray-800">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white text-sm">SC</div>
+      <div>
+        <div class="font-bold text-sm text-white">Sottcor Bolivia</div>
+        <div class="text-xs text-gray-400">CRM Dashboard</div>
+      </div>
+    </div>
+  </div>
+  <nav class="flex-1 p-3 flex flex-col gap-1">
+    <div class="sidebar-item active" onclick="showSection('overview')">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+      Dashboard
+    </div>
+    <div class="sidebar-item" onclick="showSection('leads')">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0"/></svg>
+      Leads Activos
+    </div>
+    <div class="sidebar-item" onclick="showSection('vendedores')">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+      Vendedores
+    </div>
+    <div class="sidebar-item" onclick="showSection('historico')">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      Histórico
+    </div>
+    <div class="sidebar-item" onclick="showSection('campanas')">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>
+      Campañas
+    </div>
+  </nav>
+  <div class="p-3 border-t border-gray-800">
+    <div class="sidebar-item text-xs text-gray-500" id="last-update">Actualizando...</div>
+    <div class="sidebar-item" onclick="refreshAll()">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+      Actualizar datos
+    </div>
+  </div>
+</div>
+
+<!-- Main Content -->
+<div class="ml-56 min-h-screen">
+
+  <!-- Header -->
+  <div class="sticky top-0 z-40 flex items-center justify-between px-6 py-4 border-b border-gray-800" style="background:#0f1117;">
+    <div>
+      <h1 class="font-bold text-lg text-white" id="page-title">Dashboard General</h1>
+      <div class="text-xs text-gray-400" id="page-subtitle">Vista general de leads y vendedores</div>
+    </div>
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2 text-xs text-gray-400">
+        <span class="dot-online pulse"></span>
+        <span>Sistema activo</span>
+      </div>
+      <button class="btn btn-primary" onclick="refreshAll()">↻ Actualizar</button>
+    </div>
+  </div>
+
+  <!-- SECTION: Overview -->
+  <div id="section-overview" class="p-6">
+    <!-- Alert sin asignar -->
+    <div id="alert-unassigned" class="hidden mb-4 p-3 rounded-lg border border-yellow-600 bg-yellow-900/20 text-yellow-400 text-sm flex items-center gap-2">
+      ⚠️ <span id="alert-text"></span>
+    </div>
+
+    <!-- Metric Cards Row 1 -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+      <div class="metric-card card-hover">
+        <div class="text-xs text-gray-400 mb-1 uppercase tracking-wide">Total Conversaciones</div>
+        <div class="text-3xl font-bold text-white" id="m-total">—</div>
+        <div class="text-xs text-indigo-400 mt-1">Chatwoot — todos los estados</div>
+      </div>
+      <div class="metric-card card-hover">
+        <div class="text-xs text-gray-400 mb-1 uppercase tracking-wide">Sin Asignar</div>
+        <div class="text-3xl font-bold text-red-400" id="m-nuevos">—</div>
+        <div class="text-xs text-gray-500 mt-1">Esperando vendedor</div>
+      </div>
+      <div class="metric-card card-hover">
+        <div class="text-xs text-gray-400 mb-1 uppercase tracking-wide">Abiertas</div>
+        <div class="text-3xl font-bold text-yellow-400" id="m-seguimiento">—</div>
+        <div class="text-xs text-gray-500 mt-1">Conversaciones activas</div>
+      </div>
+      <div class="metric-card card-hover">
+        <div class="text-xs text-gray-400 mb-1 uppercase tracking-wide">Resueltas</div>
+        <div class="text-3xl font-bold text-green-400" id="m-cerrados">—</div>
+        <div class="text-xs text-gray-500 mt-1">Conversaciones cerradas</div>
+      </div>
+    </div>
+
+    <!-- Metric Cards Row 2 -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div class="metric-card card-hover">
+        <div class="text-xs text-gray-400 mb-1 uppercase tracking-wide">🔥 Interesados</div>
+        <div class="text-3xl font-bold text-orange-400" id="m-interesados">—</div>
+        <div class="text-xs text-gray-500 mt-1">Etiqueta interesados</div>
+      </div>
+      <div class="metric-card card-hover">
+        <div class="text-xs text-gray-400 mb-1 uppercase tracking-wide">❌ Anulados</div>
+        <div class="text-3xl font-bold text-red-400" id="m-anulados">—</div>
+        <div class="text-xs text-gray-500 mt-1">Pedidos anulados</div>
+      </div>
+      <div class="metric-card card-hover">
+        <div class="text-xs text-gray-400 mb-1 uppercase tracking-wide">📊 Tasa Resolución</div>
+        <div class="text-3xl font-bold text-purple-400" id="m-tasa">—</div>
+        <div class="text-xs text-gray-500 mt-1">Resueltas / Total</div>
+      </div>
+      <div class="metric-card card-hover">
+        <div class="text-xs text-gray-400 mb-1 uppercase tracking-wide">📅 Hoy</div>
+        <div class="text-3xl font-bold text-cyan-400" id="m-hoy">—</div>
+        <div class="text-xs text-gray-500 mt-1">Nuevas conversaciones hoy</div>
+      </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+      <div class="card p-5">
+        <div class="text-sm font-semibold text-white mb-4">Estado de Conversaciones</div>
+        <canvas id="chart-estado" height="220"></canvas>
+      </div>
+      <div class="card p-5">
+        <div class="text-sm font-semibold text-white mb-4">Leads por Departamento</div>
+        <canvas id="chart-depto" height="220"></canvas>
+      </div>
+      <div class="card p-5">
+        <div class="text-sm font-semibold text-white mb-4">Carga por Vendedor</div>
+        <canvas id="chart-vendedor" height="220"></canvas>
+      </div>
+    </div>
+
+    <!-- Vendedores Performance -->
+    <div class="card p-5 mb-6">
+      <div class="text-sm font-semibold text-white mb-4">Rendimiento de Vendedores</div>
+      <div id="vendedores-perf" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+    </div>
+
+    <!-- Etiquetas Chatwoot -->
+    <div class="card p-5 mb-6">
+      <div class="text-sm font-semibold text-white mb-4">Etiquetas Chatwoot</div>
+      <div id="labels-grid" class="flex flex-wrap gap-2"></div>
+    </div>
+
+    <!-- Recent Leads -->
+    <div class="card p-5">
+      <div class="flex items-center justify-between mb-4">
+        <div class="text-sm font-semibold text-white">Conversaciones Recientes</div>
+        <button class="btn btn-secondary text-xs" onclick="showSection('leads')">Ver todas →</button>
+      </div>
+      <div class="scroll-table">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-xs text-gray-400 border-b border-gray-800">
+              <th class="text-left py-2 pr-4">Nombre</th>
+              <th class="text-left py-2 pr-4">Teléfono</th>
+              <th class="text-left py-2 pr-4">Vendedor</th>
+              <th class="text-left py-2 pr-4">Estado</th>
+              <th class="text-left py-2 pr-4">Etiquetas</th>
+              <th class="text-left py-2">Fecha</th>
+            </tr>
+          </thead>
+          <tbody id="recent-leads" class="divide-y divide-gray-800"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION: Leads -->
+  <div id="section-leads" class="p-6 hidden">
+    <div class="card p-5">
+      <!-- Filters -->
+      <div class="flex flex-wrap gap-3 mb-5">
+        <input type="text" id="filter-nombre" placeholder="🔍 Buscar nombre o teléfono..." class="flex-1 min-w-48" oninput="filterLeads()">
+        <select id="filter-estado" onchange="filterLeads()">
+          <option value="">Todos los estados</option>
+          <option value="nuevo">Nuevo</option>
+          <option value="seguimiento">En seguimiento</option>
+          <option value="cerrado">Cerrado</option>
+          <option value="perdido">Perdido</option>
+        </select>
+        <select id="filter-vendedor" onchange="filterLeads()">
+          <option value="">Todos los vendedores</option>
+          <option value="Abelino">Abelino</option>
+          <option value="Yulisa">Yulisa</option>
+        </select>
+        <select id="filter-fuente" onchange="filterLeads()">
+          <option value="">Todas las fuentes</option>
+          <option value="whatsapp_directo">WhatsApp Directo</option>
+          <option value="meta_ads">Meta Ads</option>
+        </select>
+        <button class="btn btn-secondary" onclick="clearFilters()">Limpiar</button>
+        <button class="btn btn-success" onclick="exportCSV()">⬇ Exportar CSV</button>
+      </div>
+      <div class="text-xs text-gray-400 mb-3" id="leads-count">Cargando...</div>
+      <div class="scroll-table">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-xs text-gray-400 border-b border-gray-800">
+              <th class="text-left py-2 pr-4">#</th>
+              <th class="text-left py-2 pr-4">Nombre</th>
+              <th class="text-left py-2 pr-4">Teléfono</th>
+              <th class="text-left py-2 pr-4">Mensaje</th>
+              <th class="text-left py-2 pr-4">Vendedor</th>
+              <th class="text-left py-2 pr-4">Fuente</th>
+              <th class="text-left py-2 pr-4">Estado</th>
+              <th class="text-left py-2 pr-4">Fecha</th>
+              <th class="text-left py-2">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="leads-table" class="divide-y divide-gray-800"></tbody>
+        </table>
+      </div>
+      <div class="flex items-center justify-between mt-4">
+        <button class="btn btn-secondary text-xs" onclick="prevPage()">← Anterior</button>
+        <span class="text-xs text-gray-400" id="page-info">Página 1</span>
+        <button class="btn btn-secondary text-xs" onclick="nextPage()">Siguiente →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION: Vendedores -->
+  <div id="section-vendedores" class="p-6 hidden">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="vendedores-cards"></div>
+  </div>
+
+  <!-- SECTION: Histórico -->
+  <div id="section-historico" class="p-6 hidden">
+    <div class="card p-5">
+      <div class="text-sm font-semibold text-white mb-4">Historial de Leads</div>
+      <div class="scroll-table">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-xs text-gray-400 border-b border-gray-800">
+              <th class="text-left py-2 pr-4">Nombre</th>
+              <th class="text-left py-2 pr-4">Teléfono</th>
+              <th class="text-left py-2 pr-4">Vendedor</th>
+              <th class="text-left py-2 pr-4">Estado</th>
+              <th class="text-left py-2">Fecha</th>
+            </tr>
+          </thead>
+          <tbody id="historico-table" class="divide-y divide-gray-800"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION: Campañas -->
+  <div id="section-campanas" class="p-6 hidden">
+    <div class="card p-5">
+      <div class="text-sm font-semibold text-white mb-4">Campañas</div>
+      <div id="campanas-list"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = '/sb';
+const SUPABASE_KEY = 'sb_publishable_OMiUdHI009VQL5Id0eNPgQ_n32Z7S9l';
+const CHATWOOT_URL = 'https://n8n-chatwoot.mnch9q.easypanel.host';
+const CHATWOOT_PROXY = '/cw';
+const CHATWOOT_TOKEN = 'ttroYa5QcXG6YsQNbHnmtopD';
+const CHATWOOT_ACCOUNT = 1;
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let allLeads = [];
+let filteredLeads = [];
+let currentPage = 1;
+const PAGE_SIZE = 20;
+let chartEstado = null;
+let chartVendedor = null;
+let chartDepto = null;
+
+// Agentes Chatwoot
+const AGENTS = [
+  { id: 8, nombre: 'Abelino', supabase_id: 1 },
+  { id: 9, nombre: 'Yulisa', supabase_id: 4 }
+];
+
+// ─── Navigation ───────────────────────────────────────────────
+const sections = ['overview','leads','vendedores','historico','campanas'];
+const titles = {
+  overview: ['Dashboard General','Vista general de leads y vendedores'],
+  leads: ['Conversaciones Chatwoot','Gestión y seguimiento de conversaciones'],
+  vendedores: ['Vendedores','Equipo de ventas y rendimiento'],
+  historico: ['Histórico','Registro completo de leads'],
+  campanas: ['Campañas','Campañas de marketing activas']
+};
+
+function showSection(name) {
+  sections.forEach(s => {
+    document.getElementById('section-'+s).classList.toggle('hidden', s !== name);
+  });
+  document.querySelectorAll('.sidebar-item').forEach((el) => {
+    el.classList.toggle('active', el.getAttribute('onclick') === `showSection('${name}')`);
+  });
+  document.getElementById('page-title').textContent = titles[name][0];
+  document.getElementById('page-subtitle').textContent = titles[name][1];
+  if (name === 'leads' && allLeads.length === 0) loadLeads();
+  if (name === 'vendedores') loadVendedores();
+  if (name === 'historico') loadHistorico();
+  if (name === 'campanas') loadCampanas();
+}
+
+// ─── Toast ────────────────────────────────────────────────────
+function showToast(msg, color='#4f46e5') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.borderColor = color;
+  t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 3000);
+}
+
+// ─── Chatwoot API (via proxy) ─────────────────────────────────
+async function cwGet(path) {
+  const r = await fetch(`${CHATWOOT_PROXY}/accounts/${CHATWOOT_ACCOUNT}${path}`);
+  return r.json();
+}
+
+async function cwMeta(status='open') {
+  const d = await cwGet(`/conversations?status=${status}&page=1`);
+  return d?.data?.meta || {};
+}
+
+// ─── Supabase API (via proxy) ─────────────────────────────────
+async function sbGet(table, params='') {
+  const r = await fetch(`${SUPABASE_URL}/${table}${params}`);
+  return r.json();
+}
+
+// ─── Overview ─────────────────────────────────────────────────
+async function loadOverview() {
+  const [metaOpen, metaResolved, metaPending, vendedores, recentData,
+         lblInteresados, lblAnulados, lblLapaz, lblCochabamba, lblOruro, lblBeni, lblPedido, allLabels] = await Promise.all([
+    cwMeta('open'), cwMeta('resolved'), cwMeta('pending'),
+    sbGet('vendedores', '?select=*&order=leads_asignados.desc'),
+    cwGet('/conversations?page=1&status=open'),
+    cwGetCount('interesados'), cwGetCount('anulado'),
+    cwGetCount('lapaz'), cwGetCount('cochabamba'), cwGetCount('oruro'), cwGetCount('beni'), cwGetCount('pedidoparaotrodist'),
+    cwGet('/labels')
+  ]);
+
+  const abiertas = metaOpen.all_count || 0;
+  const resueltas = metaResolved.all_count || 0;
+  const pendientes = metaPending.all_count || 0;
+  const sinAsignar = metaOpen.unassigned_count || 0;
+  const total = abiertas + resueltas + pendientes;
+  const tasa = total > 0 ? Math.round(resueltas / total * 100) : 0;
+
+  // Métricas fila 1
+  document.getElementById('m-total').textContent = total.toLocaleString();
+  document.getElementById('m-nuevos').textContent = sinAsignar.toLocaleString();
+  document.getElementById('m-seguimiento').textContent = abiertas.toLocaleString();
+  document.getElementById('m-cerrados').textContent = resueltas.toLocaleString();
+
+  // Métricas fila 2
+  document.getElementById('m-interesados').textContent = lblInteresados.toLocaleString();
+  document.getElementById('m-anulados').textContent = lblAnulados.toLocaleString();
+  document.getElementById('m-tasa').textContent = tasa + '%';
+
+  // Hoy
+  const convs = recentData?.data?.payload || [];
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+  const hoy = convs.filter(c => new Date(c.created_at*1000) >= todayStart).length;
+  document.getElementById('m-hoy').textContent = hoy + '+';
+
+  // Alerta sin asignar
+  if (sinAsignar > 0) {
+    document.getElementById('alert-unassigned').classList.remove('hidden');
+    document.getElementById('alert-text').textContent = `${sinAsignar} conversación(es) sin asignar a vendedor. Revisa Chatwoot.`;
+  }
+
+  renderChartEstado(abiertas, pendientes, resueltas);
+  renderChartDepto(lblLapaz, lblCochabamba, lblOruro, lblBeni, lblPedido);
+  renderChartVendedor(vendedores.filter(v=>v.activo));
+  renderVendedoresPerf(vendedores.filter(v=>v.activo), total);
+  renderLabels(allLabels?.payload || [], {interesados:lblInteresados, anulado:lblAnulados, lapaz:lblLapaz, cochabamba:lblCochabamba, oruro:lblOruro, beni:lblBeni});
+  renderRecentLeads(convs.slice(0, 10));
+
+  document.getElementById('last-update').textContent = '↻ ' + new Date().toLocaleTimeString('es-BO');
+}
+
+async function cwGetCount(label) {
+  const d = await cwGet(`/conversations?labels[]=${label}&page=1`);
+  return d?.data?.meta?.all_count || 0;
+}
+
+function renderChartEstado(abiertas, pendientes, resueltas) {
+  const ctx = document.getElementById('chart-estado').getContext('2d');
+  if (chartEstado) chartEstado.destroy();
+  chartEstado = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Abiertas','Pendientes','Resueltas'],
+      datasets: [{ data: [abiertas, pendientes, resueltas],
+        backgroundColor: ['#3b82f6','#f59e0b','#22c55e'],
+        borderWidth: 0, hoverOffset: 4 }]
+    },
+    options: { plugins: { legend: { labels: { color: '#94a3b8', font: { size: 12 } } } }, cutout: '65%' }
+  });
+}
+
+function renderChartVendedor(vendedores) {
+  const ctx = document.getElementById('chart-vendedor').getContext('2d');
+  if (chartVendedor) chartVendedor.destroy();
+  const activos = vendedores.filter(v => v.activo);
+  chartVendedor = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: activos.map(v => v.nombre),
+      datasets: [{ label: 'Leads Asignados', data: activos.map(v => v.leads_asignados),
+        backgroundColor: ['#4f46e5','#7c3aed','#0891b2','#0d9488'],
+        borderRadius: 6, borderWidth: 0 }]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { ticks: { color: '#94a3b8' }, grid: { color: '#1e2235' } },
+        x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+function renderChartDepto(lapaz, cochabamba, oruro, beni, pedido) {
+  const ctx = document.getElementById('chart-depto');
+  if (!ctx) return;
+  const context = ctx.getContext('2d');
+  if (chartDepto) chartDepto.destroy();
+  chartDepto = new Chart(context, {
+    type: 'bar',
+    data: {
+      labels: ['La Paz', 'Cochabamba', 'Oruro', 'Beni', 'Otro Dist.'],
+      datasets: [{ label: 'Leads', data: [lapaz, cochabamba, oruro, beni, pedido],
+        backgroundColor: ['#4f46e5','#7c3aed','#0891b2','#0d9488','#d97706'],
+        borderRadius: 6, borderWidth: 0 }]
+    },
+    options: {
+      indexAxis: 'y',
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#94a3b8' }, grid: { color: '#1e2235' } },
+        y: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+function renderLabels(labelsArr, counts) {
+  const el = document.getElementById('labels-grid');
+  if (!el) return;
+  const colors = ['#4f46e5','#7c3aed','#0891b2','#0d9488','#d97706','#dc2626','#059669','#c026d3','#0284c7','#ca8a04'];
+  const known = Object.entries(counts).map(([k,v],i) => ({title:k, count:v, color:colors[i % colors.length]}));
+  el.innerHTML = known.map(l => `
+    <div class="card p-3 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full" style="background:${l.color}"></span>
+        <span class="text-sm capitalize">${l.title}</span>
+      </div>
+      <span class="font-bold text-white">${l.count.toLocaleString()}</span>
+    </div>`).join('');
+}
+
+function renderVendedoresPerf(vendedores, total) {
+  const el = document.getElementById('vendedores-perf');
+  el.innerHTML = vendedores.filter(v=>v.activo).map(v => {
+    const pct = total > 0 ? Math.round(v.leads_asignados / total * 100) : 0;
+    const dot = v.activo ? 'dot-online' : 'dot-offline';
+    return `<div class="card p-4">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2">
+          <span class="${dot}"></span>
+          <span class="font-semibold text-white">${v.nombre}</span>
+        </div>
+        <span class="text-xs text-gray-400">Peso: ${v.peso}</span>
+      </div>
+      <div class="flex justify-between text-xs text-gray-400 mb-1">
+        <span>Leads asignados</span>
+        <span class="text-white font-semibold">${v.leads_asignados?.toLocaleString() || 0}</span>
+      </div>
+      <div class="progress-bar mb-3">
+        <div class="progress-fill bg-indigo-500" style="width:${pct}%"></div>
+      </div>
+      <div class="text-xs text-gray-500">Último asignado: ${v.ultimo_asignado ? new Date(v.ultimo_asignado).toLocaleString('es-BO') : '—'}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderRecentLeads(convs) {
+  const tb = document.getElementById('recent-leads');
+  tb.innerHTML = convs.map(c => {
+    const nombre = c.meta?.sender?.name || '—';
+    const telefono = c.meta?.sender?.phone_number || '—';
+    const agente = c.meta?.assignee?.name || 'Sin asignar';
+    const fecha = c.created_at ? new Date(c.created_at * 1000).toLocaleDateString('es-BO') : '—';
+    const statusBadge = c.status === 'resolved' ? 'badge-cerrado' : c.status === 'pending' ? 'badge-seguimiento' : 'badge-nuevo';
+    return `<tr class="hover:bg-gray-900 transition-colors">
+      <td class="py-2 pr-4 font-medium">${nombre}</td>
+      <td class="py-2 pr-4 text-gray-400 text-xs">${telefono}</td>
+      <td class="py-2 pr-4">${agente}</td>
+      <td class="py-2 pr-4"><span class="badge ${statusBadge}">${c.status||'open'}</span></td>
+      <td class="py-2 text-xs text-gray-500">${fecha}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── Leads (from Chatwoot) ────────────────────────────────────
+async function loadLeads() {
+  showToast('Cargando conversaciones...', '#4f46e5');
+  const pages = [];
+  for (let p = 1; p <= 5; p++) {
+    const d = await cwGet(`/conversations?page=${p}&status=open`);
+    const payload = d?.data?.payload || [];
+    if (payload.length === 0) break;
+    pages.push(...payload);
+  }
+  allLeads = pages;
+  filteredLeads = [...allLeads];
+  currentPage = 1;
+  renderLeadsTable();
+}
+
+function filterLeads() {
+  const nombre = document.getElementById('filter-nombre').value.toLowerCase();
+  const vendedor = document.getElementById('filter-vendedor').value;
+  filteredLeads = allLeads.filter(l => {
+    const senderName = (l.meta?.sender?.name || '').toLowerCase();
+    const senderPhone = l.meta?.sender?.phone_number || '';
+    const assigneeName = l.meta?.assignee?.name || '';
+    const matchNombre = !nombre || senderName.includes(nombre) || senderPhone.includes(nombre);
+    const matchVendedor = !vendedor || assigneeName === vendedor;
+    return matchNombre && matchVendedor;
+  });
+  currentPage = 1;
+  renderLeadsTable();
+}
+
+function clearFilters() {
+  ['filter-nombre','filter-estado','filter-vendedor','filter-fuente'].forEach(id => {
+    const el = document.getElementById(id);
+    el.value = '';
+  });
+  filterLeads();
+}
+
+function exportCSV() {
+  const rows = filteredLeads.map(c => {
+    const nombre = (c.meta?.sender?.name || '').replace(/,/g, ' ');
+    const telefono = c.meta?.sender?.phone_number || '';
+    const agente = c.meta?.assignee?.name || 'Sin asignar';
+    const estado = c.status || 'open';
+    const fecha = c.created_at ? new Date(c.created_at * 1000).toLocaleDateString('es-BO') : '';
+    const inbox = c.inbox_id || '';
+    return `"${nombre}","${telefono}","${agente}","${estado}","${fecha}","${inbox}"`;
+  });
+  const csv = ['Nombre,Teléfono,Agente,Estado,Fecha,Inbox', ...rows].join('\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `sottcor_leads_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+  showToast('CSV exportado correctamente', '#059669');
+}
+
+function renderLeadsTable() {
+  const start = (currentPage-1) * PAGE_SIZE;
+  const page = filteredLeads.slice(start, start + PAGE_SIZE);
+  const tb = document.getElementById('leads-table');
+  document.getElementById('leads-count').textContent = `${filteredLeads.length} conversaciones cargadas`;
+  document.getElementById('page-info').textContent = `Página ${currentPage} de ${Math.ceil(filteredLeads.length/PAGE_SIZE) || 1}`;
+  tb.innerHTML = page.map((c,i) => {
+    const nombre = c.meta?.sender?.name || '—';
+    const telefono = c.meta?.sender?.phone_number || '—';
+    const agente = c.meta?.assignee?.name || '<span class="text-yellow-400">Sin asignar</span>';
+    const lastMsg = c.messages?.[0]?.content || '—';
+    const fecha = c.created_at ? new Date(c.created_at * 1000).toLocaleDateString('es-BO') : '—';
+    const etiquetas = (c.labels||[]).map(l=>`<span class="badge badge-nuevo">${l}</span>`).join(' ');
+    return `<tr class="hover:bg-gray-900 transition-colors">
+      <td class="py-2 pr-3 text-gray-500 text-xs">${c.id}</td>
+      <td class="py-2 pr-3 font-medium text-sm">${nombre}</td>
+      <td class="py-2 pr-3 text-gray-400 text-xs">${telefono}</td>
+      <td class="py-2 pr-3 text-xs text-gray-400 max-w-xs truncate">${lastMsg}</td>
+      <td class="py-2 pr-3 text-sm">${agente}</td>
+      <td class="py-2 pr-3">${etiquetas || '—'}</td>
+      <td class="py-2 pr-3 text-xs text-gray-500">${fecha}</td>
+      <td class="py-2">
+        <a href="${CHATWOOT_URL}/app/accounts/1/conversations/${c.id}" target="_blank" class="btn btn-secondary text-xs py-1 px-2">Abrir →</a>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function prevPage() { if (currentPage > 1) { currentPage--; renderLeadsTable(); } }
+function nextPage() { if (currentPage < Math.ceil(filteredLeads.length/PAGE_SIZE)) { currentPage++; renderLeadsTable(); } }
+
+// ─── Vendedores ───────────────────────────────────────────────
+async function loadVendedores() {
+  const vendedores = await sbGet('vendedores', '?select=*&order=id.asc');
+  const el = document.getElementById('vendedores-cards');
+  el.innerHTML = vendedores.map(v => `
+    <div class="card p-5">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-white">
+            ${(v.nombre||'?')[0].toUpperCase()}
+          </div>
+          <div>
+            <div class="font-semibold text-white">${v.nombre}</div>
+            <div class="text-xs text-gray-400">${v.email || '—'}</div>
+          </div>
+        </div>
+        <span class="badge ${v.activo ? 'badge-cerrado' : 'badge-perdido'}">${v.activo ? '● Activo' : '○ Inactivo'}</span>
+      </div>
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        <div class="text-center p-3 rounded-lg" style="background:#0f1117">
+          <div class="text-2xl font-bold text-indigo-400">${(v.leads_asignados||0).toLocaleString()}</div>
+          <div class="text-xs text-gray-500 mt-1">Leads asignados</div>
+        </div>
+        <div class="text-center p-3 rounded-lg" style="background:#0f1117">
+          <div class="text-2xl font-bold text-purple-400">${v.peso || 1}</div>
+          <div class="text-xs text-gray-500 mt-1">Peso asignación</div>
+        </div>
+      </div>
+      <div class="text-xs text-gray-500">
+        Chatwoot ID: ${v.chatwoot_agent_id || '—'} ·
+        Último: ${v.ultimo_asignado ? new Date(v.ultimo_asignado).toLocaleString('es-BO') : 'Nunca'}
+      </div>
+    </div>`).join('');
+}
+
+// ─── Histórico ────────────────────────────────────────────────
+async function loadHistorico() {
+  const data = await sbGet('leads_historico', '?select=*&order=created_at.desc&limit=100');
+  const tb = document.getElementById('historico-table');
+  if (!data || data.length === 0) { tb.innerHTML = '<tr><td colspan="5" class="py-8 text-center text-gray-500">Sin registros históricos</td></tr>'; return; }
+  tb.innerHTML = data.map(l => `
+    <tr class="hover:bg-gray-900">
+      <td class="py-2 pr-4">${l.nombre || '—'}</td>
+      <td class="py-2 pr-4 text-gray-400 text-xs">${l.telefono || '—'}</td>
+      <td class="py-2 pr-4">${l.vendedor || '—'}</td>
+      <td class="py-2 pr-4">${badgeEstado(l.estado)}</td>
+      <td class="py-2 text-xs text-gray-500">${l.created_at ? new Date(l.created_at).toLocaleDateString('es-BO') : '—'}</td>
+    </tr>`).join('');
+}
+
+// ─── Campañas ─────────────────────────────────────────────────
+async function loadCampanas() {
+  const data = await sbGet('campanas', '?select=*&order=created_at.desc');
+  const el = document.getElementById('campanas-list');
+  if (!data || data.length === 0) { el.innerHTML = '<div class="text-gray-500 text-sm">Sin campañas registradas</div>'; return; }
+  el.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">` +
+    data.map(c => `<div class="card p-4 card-hover">
+      <div class="font-semibold text-white mb-1">${c.nombre || c.name || '—'}</div>
+      <div class="text-xs text-gray-400">${c.created_at ? new Date(c.created_at).toLocaleDateString('es-BO') : '—'}</div>
+    </div>`).join('') + `</div>`;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────
+function badgeEstado(estado) {
+  const map = { nuevo:'badge-nuevo', seguimiento:'badge-seguimiento', cerrado:'badge-cerrado', perdido:'badge-perdido' };
+  const cls = map[estado] || 'badge-nuevo';
+  return `<span class="badge ${cls}">${estado || 'nuevo'}</span>`;
+}
+
+function refreshAll() {
+  showToast('Actualizando datos...', '#4f46e5');
+  loadOverview();
+  if (!document.getElementById('section-leads').classList.contains('hidden')) loadLeads();
+}
+
+// ─── Init ─────────────────────────────────────────────────────
+loadOverview();
+setInterval(loadOverview, 60000);
+</script>
+</body>
+</html>

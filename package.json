@@ -1,0 +1,10 @@
+{
+  "name": "sottcor-crm-dashboard",
+  "version": "1.0.0",
+  "description": "CRM Dashboard Sottcor Bolivia",
+  "main": "proxy_server.js",
+  "scripts": {
+    "start": "node proxy_server.js"
+  },
+  "dependencies": {}
+}
