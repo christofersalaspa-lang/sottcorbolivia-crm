@@ -10,27 +10,41 @@ const SUPABASE_HOST = 'hduuuxbkvphreirlxzll.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_OMiUdHI009VQL5Id0eNPgQ_n32Z7S9l';
 
 function proxyRequest(req, res, targetHost, targetPath, extraHeaders = {}) {
-  const options = {
-    hostname: targetHost,
-    port: 443,
-    path: targetPath,
-    method: req.method,
-    headers: { ...extraHeaders }
-  };
+  const hasBody = ['POST','PATCH','PUT'].includes(req.method);
 
-  const proxyReq = https.request(options, proxyRes => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Content-Type', 'application/json');
-    res.writeHead(proxyRes.statusCode);
-    proxyRes.pipe(res);
-  });
-
-  proxyReq.on('error', e => {
-    res.writeHead(500);
-    res.end(JSON.stringify({ error: e.message }));
-  });
-
-  req.pipe(proxyReq);
+  if (hasBody) {
+    let body = [];
+    req.on('data', chunk => body.push(chunk));
+    req.on('end', () => {
+      const buf = Buffer.concat(body);
+      const options = {
+        hostname: targetHost, port: 443, path: targetPath, method: req.method,
+        headers: { ...extraHeaders, 'Content-Length': buf.length }
+      };
+      const proxyReq = https.request(options, proxyRes => {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Content-Type', 'application/json');
+        res.writeHead(proxyRes.statusCode);
+        proxyRes.pipe(res);
+      });
+      proxyReq.on('error', e => { res.writeHead(500); res.end(JSON.stringify({ error: e.message })); });
+      proxyReq.write(buf);
+      proxyReq.end();
+    });
+  } else {
+    const options = {
+      hostname: targetHost, port: 443, path: targetPath, method: req.method,
+      headers: { ...extraHeaders }
+    };
+    const proxyReq = https.request(options, proxyRes => {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Content-Type', 'application/json');
+      res.writeHead(proxyRes.statusCode);
+      proxyRes.pipe(res);
+    });
+    proxyReq.on('error', e => { res.writeHead(500); res.end(JSON.stringify({ error: e.message })); });
+    proxyReq.end();
+  }
 }
 
 const server = http.createServer((req, res) => {
@@ -40,7 +54,8 @@ const server = http.createServer((req, res) => {
   // CORS preflight
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Headers', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, apikey, Prefer, api_access_token');
     res.writeHead(204);
     res.end();
     return;
