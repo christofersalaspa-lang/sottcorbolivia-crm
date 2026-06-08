@@ -270,6 +270,10 @@
 
   <!-- SECTION: Vendedores -->
   <div id="section-vendedores" class="p-6 hidden">
+    <div class="flex items-center justify-between mb-4">
+      <p class="text-sm text-gray-400">El turno se asigna por <strong>último recibido</strong> — peso igual = distribución 1 a 1.</p>
+      <button class="btn btn-secondary text-xs" onclick="reiniciarTurno()">↺ Reiniciar turno</button>
+    </div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="vendedores-cards"></div>
   </div>
 
@@ -684,6 +688,21 @@ async function loadVendedores() {
         Último: ${v.ultimo_asignado ? new Date(v.ultimo_asignado).toLocaleString('es-BO') : 'Nunca'}
       </div>
     </div>`).join('');
+}
+
+async function reiniciarTurno() {
+  if (!confirm('¿Reiniciar el turno de asignación? Esto pone a todos los vendedores activos en el mismo punto de partida para distribuir 1 a 1.')) return;
+  const vendedores = await sbGet('vendedores', '?activo=eq.true&select=id');
+  if (!vendedores || vendedores.length === 0) { showToast('No hay vendedores activos', '#d97706'); return; }
+  for (const v of vendedores) {
+    await fetch(`${SUPABASE_URL}/vendedores?id=eq.${v.id}`, {
+      method: 'PATCH',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ ultimo_asignado: null })
+    });
+  }
+  showToast('✅ Turno reiniciado — distribución 1 a 1 desde ahora', '#059669');
+  loadVendedores();
 }
 
 async function toggleVendedor(id, activoActual) {
